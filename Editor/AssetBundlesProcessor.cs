@@ -108,15 +108,22 @@ namespace Build1.UnityAssetBundlesTool.Editor
 
         private static void OnBuildPlayer(BuildPlayerOptions options)
         {
-            // While building to a device we always use target platform build target.
-            var buildAssetBundles = GetAutoRebuildEnabled() && AssetBundlesBuilder.CheckAssetBundlesExist(true);
+            var buildTarget = ResolvePlayerBuildTarget(options);
+            var buildAssetBundles = AssetBundlesBuilder.CheckAssetBundlesExist(true);
             if (buildAssetBundles)
-                AssetBundlesBuilder.Build(EditorUserBuildSettings.activeBuildTarget, BuildAssetBundleOptions.StrictMode, false);
+                AssetBundlesBuilder.Build(buildTarget, AssetBundlesBuilder.DefaultBuildOptions, false);
 
             BuildPlayerWindow.DefaultBuildMethods.BuildPlayer(options);
 
             if (buildAssetBundles)
-                Debug.Log("AssetBundles: Bundles were built before Building project");
+                Debug.Log($"AssetBundles: Bundles were built for {buildTarget} before Building project");
+        }
+
+        private static BuildTarget ResolvePlayerBuildTarget(BuildPlayerOptions options)
+        {
+            return options.target == BuildTarget.NoTarget
+                ? EditorUserBuildSettings.activeBuildTarget
+                : options.target;
         }
 
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
@@ -126,7 +133,7 @@ namespace Build1.UnityAssetBundlesTool.Editor
                 case PlayModeStateChange.ExitingEditMode:
                 {
                     if (GetAutoRebuildEnabled() && AssetBundlesBuilder.CheckAssetBundlesExist(true))
-                        AssetBundlesBuilder.Build(GetLocalBuildTargetTyped(), BuildAssetBundleOptions.StrictMode, false);
+                        AssetBundlesBuilder.Build(GetLocalBuildTargetTyped(), AssetBundlesBuilder.DefaultBuildOptions, false);
                     break;
                 }
                 case PlayModeStateChange.EnteredPlayMode:

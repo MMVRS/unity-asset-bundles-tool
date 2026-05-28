@@ -54,8 +54,8 @@ namespace Build1.UnityAssetBundlesTool.Editor
         public static void AutoRebuildInfo()
         {
             EditorUtility.DisplayDialog("Auto Rebuild",
-                                        "When Enabled, asset bundles will be rebuilt when the current target platform is changed or when building process is initiated.\n\n" +
-                                        "The same will happen before Play in the Editor if any inconsistency in Asset Bundles files list is found.\n\n" +
+                                        "When Enabled, asset bundles will be rebuilt before Play in the Editor if any inconsistency in Asset Bundles files list is found.\n\n" +
+                                        "Player builds always rebuild asset bundles for the player build target, independent of this setting.\n\n" +
                                         "NOTE: Currently, only Asset Bundles files (builds) list is analyzed. The tool doesn't track bundle content changes.",
                                         "Got it!");
         }
@@ -106,13 +106,13 @@ namespace Build1.UnityAssetBundlesTool.Editor
         [MenuItem("Tools/Build1/Asset Bundles/Build", false, 1050)]
         public static void Build()
         {
-            AssetBundlesBuilder.Build(AssetBundlesProcessor.GetLocalBuildTargetTyped(), BuildAssetBundleOptions.StrictMode);
+            AssetBundlesBuilder.Build(AssetBundlesProcessor.GetLocalBuildTargetTyped(), AssetBundlesBuilder.DefaultBuildOptions);
         }
 
         [MenuItem("Tools/Build1/Asset Bundles/Rebuild", false, 1051)]
         public static void Rebuild()
         {
-            AssetBundlesBuilder.Build(AssetBundlesProcessor.GetLocalBuildTargetTyped(), BuildAssetBundleOptions.StrictMode | BuildAssetBundleOptions.ForceRebuildAssetBundle);
+            AssetBundlesBuilder.Build(AssetBundlesProcessor.GetLocalBuildTargetTyped(), AssetBundlesBuilder.DefaultRebuildOptions);
         }
 
         /*

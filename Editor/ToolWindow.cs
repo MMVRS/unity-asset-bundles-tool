@@ -38,10 +38,10 @@ namespace Build1.UnityAssetBundlesTool.Editor
             var buildTargetTyped = AssetBundlesProcessor.GetLocalBuildTargetTyped();
             
             if (GUILayout.Button("Build", GUILayout.Width(60), GUILayout.Height(18)))
-                AssetBundlesBuilder.Build(buildTargetTyped, BuildAssetBundleOptions.StrictMode);
+                AssetBundlesBuilder.Build(buildTargetTyped, AssetBundlesBuilder.DefaultBuildOptions);
 
             if (GUILayout.Button("Rebuild", GUILayout.Width(60), GUILayout.Height(18)))
-                AssetBundlesBuilder.Build(buildTargetTyped, BuildAssetBundleOptions.StrictMode | BuildAssetBundleOptions.ForceRebuildAssetBundle);
+                AssetBundlesBuilder.Build(buildTargetTyped, AssetBundlesBuilder.DefaultRebuildOptions);
             
             GUILayout.Space(6);
             GUILayout.EndHorizontal();

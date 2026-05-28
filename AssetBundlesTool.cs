@@ -18,7 +18,7 @@ namespace Build1.UnityAssetBundlesTool
 
         public static void Build(BuildTarget buildTarget)
         {
-            AssetBundlesBuilder.Build(buildTarget, BuildAssetBundleOptions.StrictMode, false);
+            AssetBundlesBuilder.Build(buildTarget, AssetBundlesBuilder.DefaultBuildOptions, false);
         }
 
         public static void BuildAsync(Action onComplete = null)
@@ -28,7 +28,7 @@ namespace Build1.UnityAssetBundlesTool
 
         public static void BuildAsync(BuildTarget buildTarget, Action onComplete = null)
         {
-            AssetBundlesBuilder.Build(buildTarget, BuildAssetBundleOptions.StrictMode, true, onComplete);
+            AssetBundlesBuilder.Build(buildTarget, AssetBundlesBuilder.DefaultBuildOptions, true, onComplete);
         }
 
         public static AssetBundleToolResult SeBundleVersionInBuildConfiguration(string bundleName, int version)
@@ -47,8 +47,20 @@ namespace Build1.UnityAssetBundlesTool
         public static AssetBundleToolResult BuildBundleUsingBuilderConfiguration(string bundleName, 
                                                                                  AssetBundleBuildTargetFlags platforms, 
                                                                                  string buildPath, 
+                                                                                 string namingPattern)
+        {
+            return BuildBundleUsingBuilderConfiguration(bundleName,
+                                                        platforms,
+                                                        buildPath,
+                                                        namingPattern,
+                                                        AssetBundlesBuilder.DefaultBuildOptions);
+        }
+
+        public static AssetBundleToolResult BuildBundleUsingBuilderConfiguration(string bundleName, 
+                                                                                 AssetBundleBuildTargetFlags platforms, 
+                                                                                 string buildPath, 
                                                                                  string namingPattern, 
-                                                                                 BuildAssetBundleOptions options = BuildAssetBundleOptions.StrictMode | BuildAssetBundleOptions.AssetBundleStripUnityVersion)
+                                                                                 BuildAssetBundleOptions options)
         {
             var model = new BuilderModel();
             var bundleInfo = model.Config.Bundles.FirstOrDefault(info => info.Name == bundleName);

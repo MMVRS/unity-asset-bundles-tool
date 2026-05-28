@@ -41,7 +41,7 @@ namespace Build1.UnityAssetBundlesTool.Editor.Builder
         private void OnDeserialized(StreamingContext context)
         {
             if (Options == 0)
-                Options = BuildAssetBundleOptions.AssetBundleStripUnityVersion | BuildAssetBundleOptions.StrictMode;
+                Options = AssetBundlesBuilder.DefaultBuildOptions;
             
             Bundles ??= new List<BuilderBundleInfo>();
         }
@@ -57,6 +57,7 @@ namespace Build1.UnityAssetBundlesTool.Editor.Builder
                 Platforms = AssetBundleBuildTargetFlags.iOS | AssetBundleBuildTargetFlags.Android,
                 BuildPath = "/Assets/StreamingAssets/",
                 NamingPattern = "{name}_{version}_{platform}",
+                Options = AssetBundlesBuilder.DefaultBuildOptions,
                 Bundles = new List<BuilderBundleInfo>()
             };
         }

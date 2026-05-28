@@ -34,7 +34,7 @@ namespace Build1.UnityAssetBundlesTool.Editor.Builder
             if (platforms != config.Platforms || buildPath != config.BuildPath || namingPattern != config.NamingPattern || options != config.Options)
                 config.SetDirty();
             
-            EGUI.MessageBox("Asset bundles list updates automatically depending on the bundles list in the project settings.", MessageType.Info);
+            EGUI.MessageBox("Asset bundles list updates automatically depending on the bundles list in the project settings.\n\nRelease WebGL deploys must use Tools/Build1/Asset Bundles/Build or the player build hook so hashed bundle files and asset-bundles.json are generated.", MessageType.Warning);
             EGUI.Space(9);
             
             EGUI.PropertyList(config, config.Bundles, nameof(config.Bundles))
