@@ -2,12 +2,14 @@
 
 using System;
 using UnityEditor;
+using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 namespace Build1.UnityAssetBundlesTool.Editor
 {
     [InitializeOnLoad]
-    internal static class AssetBundlesProcessor
+    internal sealed class AssetBundlesProcessor : IPreprocessBuildWithReport
     {
         public const string LocalBuildTarget              = "Build1_AssetBundlesTool_LocalBuildTarget";
         public const string AutoRebuildKey                = "Build1_AssetBundlesTool_AutoRebuildEnabled";
@@ -15,8 +17,6 @@ namespace Build1.UnityAssetBundlesTool.Editor
 
         static AssetBundlesProcessor()
         {
-            BuildPlayerWindow.RegisterBuildPlayerHandler(OnBuildPlayer);
-
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
         }
 
@@ -103,28 +103,27 @@ namespace Build1.UnityAssetBundlesTool.Editor
         }
 
         /*
-         * Private.
+         * Build.
          */
 
-        private static void OnBuildPlayer(BuildPlayerOptions options)
+        public int callbackOrder => -1000;
+
+        public void OnPreprocessBuild(BuildReport report)
         {
-            var buildTarget = ResolvePlayerBuildTarget(options);
             var buildAssetBundles = AssetBundlesBuilder.CheckAssetBundlesExist(true);
-            if (buildAssetBundles)
-                AssetBundlesBuilder.Build(buildTarget, AssetBundlesBuilder.DefaultBuildOptions, false);
+            if (!buildAssetBundles)
+                return;
 
-            BuildPlayerWindow.DefaultBuildMethods.BuildPlayer(options);
+            var buildTarget = report.summary.platform;
+            if (!AssetBundlesBuilder.Build(buildTarget, AssetBundlesBuilder.DefaultBuildOptions, false))
+                throw new BuildFailedException($"Asset bundle build failed for {buildTarget}. See the Console for the asset-bundle error.");
 
-            if (buildAssetBundles)
-                Debug.Log($"AssetBundles: Bundles were built for {buildTarget} before Building project");
+            Debug.Log($"AssetBundles: Bundles were built for {buildTarget} before Building project");
         }
 
-        private static BuildTarget ResolvePlayerBuildTarget(BuildPlayerOptions options)
-        {
-            return options.target == BuildTarget.NoTarget
-                ? EditorUserBuildSettings.activeBuildTarget
-                : options.target;
-        }
+        /*
+         * Private.
+         */
 
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
         {
