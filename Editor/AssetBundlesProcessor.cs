@@ -110,15 +110,24 @@ namespace Build1.UnityAssetBundlesTool.Editor
 
         public void OnPreprocessBuild(BuildReport report)
         {
-            var buildAssetBundles = AssetBundlesBuilder.CheckAssetBundlesExist(true);
-            if (!buildAssetBundles)
+            // Unity 6 forbids BuildPipeline.BuildAssetBundles while a player build is in progress,
+            // so bundles must be built before the player build, not from inside this callback.
+            // Verify the bundles are already published for the target and let the player build
+            // package them. Build/refresh them via Tools/Build1/Asset Bundles/Rebuild beforehand.
+            if (!AssetBundlesBuilder.CheckAssetBundlesExist(true))
                 return;
 
             var buildTarget = report.summary.platform;
-            if (!AssetBundlesBuilder.Build(buildTarget, AssetBundlesBuilder.DefaultBuildOptions, false))
-                throw new BuildFailedException($"Asset bundle build failed for {buildTarget}. See the Console for the asset-bundle error.");
+            if (AssetBundlesBuilder.CheckAssetBundlesPublished(buildTarget))
+            {
+                Debug.Log($"AssetBundles: Verified published bundles for {buildTarget}; packaging existing output.");
+                return;
+            }
 
-            Debug.Log($"AssetBundles: Bundles were built for {buildTarget} before Building project");
+            throw new BuildFailedException(
+                $"Asset bundles are not built for {buildTarget}. " +
+                "Build them first via Tools/Build1/Asset Bundles/Rebuild (or the Asset Bundles tool window), then build the player. " +
+                "Unity 6 cannot build asset bundles during a player build.");
         }
 
         /*

@@ -46,7 +46,16 @@ namespace Build1.UnityAssetBundlesTool.Editor
                 AssetDatabase.RemoveUnusedAssetBundleNames();
             return AssetDatabase.GetAllAssetBundleNames().Length != 0;
         }
-        
+
+        // Verifies that bundle output already exists on disk for the given target, without rebuilding.
+        // WebGL output is hashed + described by the JSON manifest; other targets keep raw named files.
+        public static bool CheckAssetBundlesPublished(BuildTarget target)
+        {
+            if (target == BuildTarget.WebGL)
+                return CreateWebGLOutputPublisher().IsOutputPublished();
+            return CheckAssetBundles();
+        }
+
         /*
          * Build.
          */

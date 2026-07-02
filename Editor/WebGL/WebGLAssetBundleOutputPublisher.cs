@@ -24,6 +24,33 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
             _streamingAssetsPath = streamingAssetsPath;
         }
 
+        // True when a complete WebGL bundle set is already on disk: the JSON manifest exists,
+        // lists at least one bundle, and every referenced hashed bundle file is present.
+        public bool IsOutputPublished()
+        {
+            if (!Directory.Exists(_streamingAssetsPath))
+                return false;
+
+            var manifestPath = Path.Combine(_streamingAssetsPath, ManifestFileName);
+            if (!File.Exists(manifestPath))
+                return false;
+
+            var manifest = JsonUtility.FromJson<AssetBundlesManifestDto>(File.ReadAllText(manifestPath));
+            if (manifest?.bundles == null || manifest.bundles.Length == 0)
+                return false;
+
+            foreach (var bundle in manifest.bundles)
+            {
+                if (bundle == null || string.IsNullOrEmpty(bundle.file))
+                    return false;
+
+                if (!File.Exists(Path.Combine(_streamingAssetsPath, bundle.file)))
+                    return false;
+            }
+
+            return true;
+        }
+
         public void PublishSuccessfulBuild(AssetBundleManifest unityManifest, BuildAssetBundleOptions options)
         {
             var cleanupBundleNames = CollectCleanupBundleNames();
