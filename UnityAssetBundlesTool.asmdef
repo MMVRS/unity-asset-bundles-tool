@@ -3,9 +3,12 @@
     "rootNamespace": "",
     "references": [
         "AssetBundleManifestModel",
-        "UnityEGUI"
+        "UnityEGUI",
+        "Unity.TextMeshPro.Editor"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

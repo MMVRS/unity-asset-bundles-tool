@@ -2,6 +2,7 @@
 
 using UnityEditor;
 using UnityEngine;
+using TMPro;
 
 namespace Build1.UnityAssetBundlesTool.Editor
 {
@@ -20,6 +21,10 @@ namespace Build1.UnityAssetBundlesTool.Editor
 
         private static void BuildWithAssetBundles(BuildPlayerOptions options)
         {
+            // Use TextMesh Pro's version-matched prebuild processor so bundle inputs are
+            // canonicalized by the same qualifying-font policy as the subsequent Player build.
+            new TMP_PreBuildProcessor().OnPreprocessBuild(null);
+
             // AssetBundlesBuilder.Build returns true when there are no bundles to build or the
             // build succeeds, and false only on an actual bundle build failure. On failure we
             // abort loudly and do not build the player. No fallback path.
