@@ -21,6 +21,44 @@ namespace Build1.UnityAssetBundlesTool
             AssetBundlesBuilder.Build(buildTarget, AssetBundlesBuilder.DefaultBuildOptions, false);
         }
 
+        public static AssetBundleToolResult BuildWebGLVariant(WebGLTextureSubtarget textureSubtarget, string outputPath)
+        {
+            return BuildWebGLVariant(textureSubtarget, outputPath, AssetBundlesBuilder.DefaultBuildOptions);
+        }
+
+        public static AssetBundleToolResult BuildWebGLVariant(WebGLTextureSubtarget textureSubtarget,
+                                                              string outputPath,
+                                                              BuildAssetBundleOptions options)
+        {
+            try
+            {
+                return AssetBundlesBuilder.BuildWebGLVariant(textureSubtarget, outputPath, options)
+                           ? AssetBundleToolResult.Success
+                           : AssetBundleToolResult.BuildError;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                return AssetBundleToolResult.BuildError;
+            }
+        }
+
+        public static IDisposable UseWebGLVariantForPlayerBuild(WebGLTextureSubtarget textureSubtarget,
+                                                                string outputPath)
+        {
+            return AssetBundlesProcessor.UseWebGLVariantForPlayerBuild(textureSubtarget, outputPath);
+        }
+
+        public static void RegisterBuildPlayerOverride(Func<BuildPlayerOptions, bool> buildPlayerOverride)
+        {
+            AssetBundlesBuildPlayerHandler.RegisterBuildPlayerOverride(buildPlayerOverride);
+        }
+
+        public static void UnregisterBuildPlayerOverride(Func<BuildPlayerOptions, bool> buildPlayerOverride)
+        {
+            AssetBundlesBuildPlayerHandler.UnregisterBuildPlayerOverride(buildPlayerOverride);
+        }
+
         public static void BuildAsync(Action onComplete = null)
         {
             BuildAsync(EditorUserBuildSettings.activeBuildTarget, onComplete);

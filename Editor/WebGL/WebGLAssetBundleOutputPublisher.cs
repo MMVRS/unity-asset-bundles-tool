@@ -15,6 +15,7 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
     {
         private const int    ManifestSchemaVersion = 1;
         private const string ManifestFileName      = "asset-bundles.json";
+        private const string VariantFileName       = "asset-bundles-variant.json";
         private const string HashedBundleExtension = ".bundle";
 
         private readonly string _streamingAssetsPath;
@@ -35,7 +36,17 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
             if (!File.Exists(manifestPath))
                 return false;
 
-            var manifest = JsonUtility.FromJson<AssetBundlesManifestDto>(File.ReadAllText(manifestPath));
+            AssetBundlesManifestDto manifest;
+            try
+            {
+                manifest = JsonUtility.FromJson<AssetBundlesManifestDto>(File.ReadAllText(manifestPath));
+            }
+            catch (Exception exception)
+            {
+                Log($"Ignoring malformed {ManifestFileName}: {exception.Message}");
+                return false;
+            }
+
             if (manifest?.bundles == null || manifest.bundles.Length == 0)
                 return false;
 
@@ -51,10 +62,63 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
             return true;
         }
 
+        public bool IsOutputPublished(WebGLTextureSubtarget expectedTextureSubtarget)
+        {
+            if (!IsOutputPublished())
+                return false;
+
+            var variantPath = Path.Combine(_streamingAssetsPath, VariantFileName);
+            if (!File.Exists(variantPath))
+                return false;
+
+            WebGLAssetBundleVariantDto variant;
+            try
+            {
+                variant = JsonUtility.FromJson<WebGLAssetBundleVariantDto>(File.ReadAllText(variantPath));
+            }
+            catch (Exception exception)
+            {
+                Log($"Ignoring malformed {VariantFileName}: {exception.Message}");
+                return false;
+            }
+
+            return variant != null &&
+                   variant.schemaVersion == ManifestSchemaVersion &&
+                   variant.buildTarget == BuildTarget.WebGL.ToString() &&
+                   variant.textureSubtarget == expectedTextureSubtarget.ToString() &&
+                   variant.assetBundlesManifestSha256 == ComputeSha256(Path.Combine(_streamingAssetsPath,
+                                                                                     ManifestFileName));
+        }
+
         public void PublishSuccessfulBuild(AssetBundleManifest unityManifest, BuildAssetBundleOptions options)
         {
+            PublishSuccessfulBuild(unityManifest, options, null);
+        }
+
+        public void PublishSuccessfulBuild(AssetBundleManifest unityManifest,
+                                           BuildAssetBundleOptions options,
+                                           WebGLTextureSubtarget textureSubtarget)
+        {
+            PublishSuccessfulBuild(unityManifest, options, (WebGLTextureSubtarget?)textureSubtarget);
+        }
+
+        private void PublishSuccessfulBuild(AssetBundleManifest unityManifest,
+                                            BuildAssetBundleOptions options,
+                                            WebGLTextureSubtarget? textureSubtarget)
+        {
+            PublishSuccessfulBuild(
+                unityManifest.GetAllAssetBundles(),
+                unityManifest.GetAllDependencies,
+                options,
+                textureSubtarget);
+        }
+
+        internal void PublishSuccessfulBuild(string[] bundleNames,
+                                             Func<string, string[]> getAllDependencies,
+                                             BuildAssetBundleOptions options,
+                                             WebGLTextureSubtarget? textureSubtarget)
+        {
             var cleanupBundleNames = CollectCleanupBundleNames();
-            var bundleNames = unityManifest.GetAllAssetBundles();
             Array.Sort(bundleNames, StringComparer.Ordinal);
 
             var manifest = new AssetBundlesManifestDto
@@ -74,7 +138,7 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
                 var hash = ComputeSha256(bundlePath);
                 var hashedFileName = $"{bundleName}.{hash[..16]}{HashedBundleExtension}";
                 var hashedFilePath = Path.Combine(_streamingAssetsPath, hashedFileName);
-                var dependencies = unityManifest.GetAllDependencies(bundleName);
+                var dependencies = getAllDependencies(bundleName);
                 Array.Sort(dependencies, StringComparer.Ordinal);
 
                 DeleteFileAndMeta(hashedFilePath);
@@ -98,7 +162,26 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
 
             ClearRawBundle(Path.GetFileName(_streamingAssetsPath));
             CleanStaleOutput(manifest, cleanupBundleNames);
-            File.WriteAllText(Path.Combine(_streamingAssetsPath, ManifestFileName), JsonUtility.ToJson(manifest, true));
+            var manifestPath = Path.Combine(_streamingAssetsPath, ManifestFileName);
+            File.WriteAllText(manifestPath, JsonUtility.ToJson(manifest, true));
+
+            var variantPath = Path.Combine(_streamingAssetsPath, VariantFileName);
+            if (textureSubtarget.HasValue)
+            {
+                var variant = new WebGLAssetBundleVariantDto
+                {
+                    schemaVersion = ManifestSchemaVersion,
+                    buildTarget = BuildTarget.WebGL.ToString(),
+                    textureSubtarget = textureSubtarget.Value.ToString(),
+                    assetBundlesManifestSha256 = ComputeSha256(manifestPath)
+                };
+                File.WriteAllText(variantPath, JsonUtility.ToJson(variant, true));
+            }
+            else
+            {
+                DeleteFileAndMeta(variantPath);
+            }
+
             AssetDatabase.Refresh();
         }
 
@@ -108,6 +191,7 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
                 return;
 
             DeleteFileAndMeta(Path.Combine(_streamingAssetsPath, ManifestFileName));
+            DeleteFileAndMeta(Path.Combine(_streamingAssetsPath, VariantFileName));
 
             var hashedBundlePaths = Directory.GetFiles(_streamingAssetsPath, "*" + HashedBundleExtension, SearchOption.TopDirectoryOnly);
             foreach (var hashedBundlePath in hashedBundlePaths)
@@ -241,7 +325,7 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
             var fileName = Path.GetFileName(path);
             var extension = Path.GetExtension(path);
 
-            if (fileName == ManifestFileName || extension == HashedBundleExtension)
+            if (fileName == ManifestFileName || fileName == VariantFileName || extension == HashedBundleExtension)
                 return false;
 
             if (extension == ".manifest")
@@ -254,7 +338,8 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
             var assetFileName = Path.GetFileName(assetPath);
             var assetExtension = Path.GetExtension(assetPath);
 
-            if (assetFileName == ManifestFileName || assetExtension == HashedBundleExtension)
+            if (assetFileName == ManifestFileName || assetFileName == VariantFileName ||
+                assetExtension == HashedBundleExtension)
                 return false;
 
             return string.IsNullOrEmpty(assetExtension) || assetExtension == ".manifest";
@@ -307,6 +392,15 @@ namespace Build1.UnityAssetBundlesTool.Editor.WebGL
         private void Log(string message)
         {
             Debug.Log($"AssetBundles: {message}");
+        }
+
+        [Serializable]
+        private sealed class WebGLAssetBundleVariantDto
+        {
+            public int    schemaVersion;
+            public string buildTarget;
+            public string textureSubtarget;
+            public string assetBundlesManifestSha256;
         }
     }
 }

@@ -15,6 +15,9 @@ namespace Build1.UnityAssetBundlesTool.Editor
         public const string AutoRebuildKey                = "Build1_AssetBundlesTool_AutoRebuildEnabled";
         public const string CleanCacheAfterPlayEnabledKey = "Build1_AssetBundlesTool_CleanCacheAfterPlayEnabled";
 
+        private static string                 _webGLVariantOutputPath;
+        private static WebGLTextureSubtarget? _webGLVariantSubtarget;
+
         static AssetBundlesProcessor()
         {
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
@@ -102,6 +105,17 @@ namespace Build1.UnityAssetBundlesTool.Editor
                 Debug.Log($"AssetBundles: Local build target set to {buildTarget}.");
         }
 
+        public static IDisposable UseWebGLVariantForPlayerBuild(WebGLTextureSubtarget textureSubtarget,
+                                                                string outputPath)
+        {
+            if (_webGLVariantOutputPath != null)
+                throw new InvalidOperationException("A WebGL asset-bundle verification scope is already active.");
+
+            _webGLVariantOutputPath = AssetBundlesBuilder.ValidateWebGLVariantArguments(textureSubtarget, outputPath);
+            _webGLVariantSubtarget = textureSubtarget;
+            return new WebGLVariantVerificationScope(_webGLVariantOutputPath, textureSubtarget);
+        }
+
         /*
          * Build.
          */
@@ -114,10 +128,38 @@ namespace Build1.UnityAssetBundlesTool.Editor
             // so bundles must be built before the player build, not from inside this callback.
             // Verify the bundles are already published for the target and let the player build
             // package them. Build/refresh them via Tools/Build1/Asset Bundles/Rebuild beforehand.
-            if (!AssetBundlesBuilder.CheckAssetBundlesExist(true))
+            ValidatePublishedBundlesForBuild(
+                report.summary.platform,
+                AssetBundlesBuilder.CheckAssetBundlesExist(true));
+        }
+
+        internal void ValidatePublishedBundlesForBuild(BuildTarget buildTarget, bool assetBundlesExist)
+        {
+            if (!assetBundlesExist)
                 return;
 
-            var buildTarget = report.summary.platform;
+            if (_webGLVariantOutputPath != null)
+            {
+                if (buildTarget != BuildTarget.WebGL || !_webGLVariantSubtarget.HasValue)
+                {
+                    throw new BuildFailedException(
+                        $"The scoped WebGL bundle output cannot be used for a {buildTarget} Player build.");
+                }
+
+                if (AssetBundlesBuilder.CheckWebGLVariantPublished(_webGLVariantSubtarget.Value,
+                                                                   _webGLVariantOutputPath))
+                {
+                    Debug.Log(
+                        $"AssetBundles: Verified published WebGL {_webGLVariantSubtarget.Value} bundles at " +
+                        $"{_webGLVariantOutputPath} for the Player build.");
+                    return;
+                }
+
+                throw new BuildFailedException(
+                    $"The scoped WebGL {_webGLVariantSubtarget.Value} asset bundles are not completely published at " +
+                    $"{_webGLVariantOutputPath}.");
+            }
+
             if (AssetBundlesBuilder.CheckAssetBundlesPublished(buildTarget))
             {
                 Debug.Log($"AssetBundles: Verified published bundles for {buildTarget}; packaging existing output.");
@@ -158,6 +200,32 @@ namespace Build1.UnityAssetBundlesTool.Editor
                     }
                     break;
                 }
+            }
+        }
+
+        private sealed class WebGLVariantVerificationScope : IDisposable
+        {
+            private readonly string                _outputPath;
+            private readonly WebGLTextureSubtarget _textureSubtarget;
+            private bool                           _disposed;
+
+            public WebGLVariantVerificationScope(string outputPath, WebGLTextureSubtarget textureSubtarget)
+            {
+                _outputPath = outputPath;
+                _textureSubtarget = textureSubtarget;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed)
+                    return;
+
+                if (_webGLVariantOutputPath != _outputPath || _webGLVariantSubtarget != _textureSubtarget)
+                    throw new InvalidOperationException("The active WebGL asset-bundle verification scope changed unexpectedly.");
+
+                _webGLVariantOutputPath = null;
+                _webGLVariantSubtarget = null;
+                _disposed = true;
             }
         }
     }

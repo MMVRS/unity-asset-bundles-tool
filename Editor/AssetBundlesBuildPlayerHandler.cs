@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 
+using System;
 using UnityEditor;
 using UnityEngine;
 using TMPro;
@@ -14,13 +15,58 @@ namespace Build1.UnityAssetBundlesTool.Editor
     [InitializeOnLoad]
     internal static class AssetBundlesBuildPlayerHandler
     {
+        private static Func<BuildPlayerOptions, bool> _buildPlayerOverride;
+        private static bool                           _invokingBuildPlayerOverride;
+
         static AssetBundlesBuildPlayerHandler()
         {
             BuildPlayerWindow.RegisterBuildPlayerHandler(BuildWithAssetBundles);
         }
 
+        public static void RegisterBuildPlayerOverride(Func<BuildPlayerOptions, bool> buildPlayerOverride)
+        {
+            if (buildPlayerOverride == null)
+                throw new ArgumentNullException(nameof(buildPlayerOverride));
+
+            if (_buildPlayerOverride != null && _buildPlayerOverride != buildPlayerOverride)
+                throw new InvalidOperationException("A Build Player override is already registered.");
+
+            _buildPlayerOverride = buildPlayerOverride;
+        }
+
+        public static void UnregisterBuildPlayerOverride(Func<BuildPlayerOptions, bool> buildPlayerOverride)
+        {
+            if (buildPlayerOverride == null)
+                throw new ArgumentNullException(nameof(buildPlayerOverride));
+
+            if (_buildPlayerOverride != buildPlayerOverride)
+                throw new InvalidOperationException("The supplied Build Player override is not registered.");
+
+            _buildPlayerOverride = null;
+        }
+
         private static void BuildWithAssetBundles(BuildPlayerOptions options)
         {
+            if (_invokingBuildPlayerOverride)
+            {
+                Debug.LogError("AssetBundles: recursive Build Player override invocation was blocked.");
+                return;
+            }
+
+            if (_buildPlayerOverride != null)
+            {
+                _invokingBuildPlayerOverride = true;
+                try
+                {
+                    if (_buildPlayerOverride.Invoke(options))
+                        return;
+                }
+                finally
+                {
+                    _invokingBuildPlayerOverride = false;
+                }
+            }
+
             // Use TextMesh Pro's version-matched prebuild processor so bundle inputs are
             // canonicalized by the same qualifying-font policy as the subsequent Player build.
             new TMP_PreBuildProcessor().OnPreprocessBuild(null);
